@@ -87,248 +87,363 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* ── 2. HERO SECTION ──────────────────────────────────────────── */}
-      <section className="relative overflow-hidden pt-12 pb-20 sm:pt-20 sm:pb-28">
-        {/* Background glow effects */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-gradient-to-tr from-indigo-200/40 via-purple-200/30 to-pink-200/20 blur-3xl pointer-events-none -z-10 rounded-full" />
+      {/* ── 2. HERO SECTION (Split Hero + Floating Dashboard Stage) ── */}
+      <section className="relative overflow-hidden pt-8 pb-16 sm:pt-14 sm:pb-24 lg:pt-16 lg:pb-28">
+        {/* Subtle Ambient Radial Lighting Background */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[640px] pointer-events-none -z-10 overflow-hidden">
+          <div className="absolute -top-24 left-1/4 w-[540px] h-[540px] rounded-full bg-gradient-to-tr from-indigo-200/35 via-purple-200/25 to-pink-100/20 blur-3xl animate-pulse-glow" />
+          <div className="absolute top-1/3 right-1/4 w-[480px] h-[480px] rounded-full bg-gradient-to-bl from-purple-200/30 via-indigo-100/25 to-transparent blur-3xl" />
+        </div>
 
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
-          {/* Pill Badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200/70 bg-indigo-50/80 px-4 py-1.5 text-xs font-bold text-indigo-700 shadow-xs mb-6">
-            <Sparkles size={14} className="text-indigo-600" />
-            <span>The All-in-One Student Collaboration & Project Platform</span>
-          </div>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+            {/* ── LEFT COLUMN: Content & CTAs ── */}
+            <div className="lg:col-span-6 flex flex-col justify-center text-left">
+              {/* Premium Badge */}
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200/70 bg-white/95 px-3.5 py-1.5 text-xs font-semibold text-slate-800 shadow-xs backdrop-blur-xs w-fit mb-6 transition-all hover:border-indigo-300">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 text-white shadow-2xs">
+                  <Sparkles size={11} />
+                </span>
+                <span className="text-slate-700 font-medium">
+                  The All-in-One Student Collaboration Platform
+                </span>
+                <span className="text-indigo-600 font-bold">✦</span>
+              </div>
 
-          {/* Main Headline */}
-          <h1 className="mx-auto max-w-4xl text-4xl font-black tracking-tight text-slate-950 sm:text-6xl sm:leading-[1.12]">
-            Turn campus ideas into{" "}
-            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 bg-clip-text text-transparent">
-              shipped projects.
-            </span>
-          </h1>
+              {/* Main Headline */}
+              <h1 className="text-4xl sm:text-5xl lg:text-[3.4rem] font-black tracking-tight text-slate-950 leading-[1.08]">
+                Turn campus ideas into{" "}
+                <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600 bg-clip-text text-transparent">
+                  shipped projects.
+                </span>
+              </h1>
 
-          {/* Subtitle */}
-          <p className="mx-auto mt-6 max-w-2xl text-base sm:text-lg leading-relaxed text-slate-600 font-normal">
-            Stop scattering your capstone teams and hackathon projects across disconnected WhatsApp groups, lost Notion docs, and chaotic spreadsheets. CampusConnect brings skill-based team discovery, real-time group chat, Kanban boards, and Google Meet syncs into one unified workspace.
-          </p>
+              {/* Supporting Description */}
+              <p className="mt-6 text-base sm:text-lg leading-relaxed text-slate-600 font-normal max-w-xl">
+                Bring your student teams, project tasks, conversations, resources, and meetings together in one collaborative workspace.
+              </p>
 
-          {/* CTA Buttons */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3.5">
-            <SignedIn>
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-indigo-600/25 hover:bg-indigo-700 transition-all hover:scale-[1.02]"
-              >
-                Go to Your Dashboard <ArrowRight size={16} />
-              </Link>
-            </SignedIn>
-            <SignedOut>
-              <Link
-                to="/sign-up"
-                className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-xl shadow-indigo-600/25 hover:bg-indigo-700 transition-all hover:scale-[1.02]"
-              >
-                Start Collaborating Free <ArrowRight size={16} />
-              </Link>
-            </SignedOut>
+              {/* Primary & Secondary CTAs */}
+              <div className="mt-8 flex flex-wrap items-center gap-3.5">
+                <SignedOut>
+                  <Link
+                    to="/sign-up"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-700 hover:shadow-indigo-600/35 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    Start Collaborating Free <ArrowRight size={16} />
+                  </Link>
+                </SignedOut>
+                <SignedIn>
+                  <Link
+                    to="/dashboard"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-700 hover:shadow-indigo-600/35 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+                  >
+                    Go to Your Dashboard <ArrowRight size={16} />
+                  </Link>
+                </SignedIn>
 
-            <Link
-              to="/projects"
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 transition-all"
-            >
-              <Search size={16} className="text-indigo-600" /> Explore Open Projects
-            </Link>
-          </div>
+                <Link
+                  to="/projects"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200/90 bg-white px-5 py-3.5 text-sm font-bold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all duration-200"
+                >
+                  <Search size={15} className="text-indigo-600" /> Explore Open Projects
+                </Link>
+              </div>
 
-          {/* Social Proof Stats */}
-          <div className="mt-12 flex flex-wrap items-center justify-center gap-6 sm:gap-12 border-t border-slate-200/60 pt-8 text-slate-600 text-xs sm:text-sm font-medium">
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-slate-900 text-base">1,500+</span>
-              <span>Student Builders</span>
-            </div>
-            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-slate-900 text-base">450+</span>
-              <span>Campus Projects</span>
-            </div>
-            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-slate-900 text-base">98%</span>
-              <span>Sprint Delivery Rate</span>
-            </div>
-          </div>
-
-          {/* Interactive / Hero Mockup Visual */}
-          <div className="mt-12 rounded-3xl border border-slate-200 bg-slate-900/5 p-2 sm:p-4 shadow-2xl backdrop-blur-sm">
-            <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xl overflow-hidden text-left">
-              {/* Browser mockup header */}
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-rose-400" />
-                  <div className="h-3 w-3 rounded-full bg-amber-400" />
-                  <div className="h-3 w-3 rounded-full bg-emerald-400" />
-                  <span className="ml-2 font-mono text-[11px] text-slate-400">
-                    https://campusconnect.internal/projects/autonomous-rover-ai
-                  </span>
+              {/* Social Proof Metric Row */}
+              <div className="mt-10 pt-6 border-t border-slate-200/70 flex flex-wrap items-center gap-6 sm:gap-8 text-xs text-slate-600">
+                <div>
+                  <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    1,500+
+                  </div>
+                  <div className="text-slate-500 font-medium mt-0.5">Student Builders</div>
                 </div>
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
-                  ● Live Team Sync
+                <div className="h-8 w-px bg-slate-200/80" />
+                <div>
+                  <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    450+
+                  </div>
+                  <div className="text-slate-500 font-medium mt-0.5">Campus Projects</div>
+                </div>
+                <div className="h-8 w-px bg-slate-200/80" />
+                <div>
+                  <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    98%
+                  </div>
+                  <div className="text-slate-500 font-medium mt-0.5">Sprint Delivery Rate</div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── RIGHT COLUMN: Interactive Floating Dashboard Stage ── */}
+            <div className="lg:col-span-6 relative flex items-center justify-center">
+              {/* Decorative Subtle Orbit / Stage Rings */}
+              <div className="absolute -inset-4 sm:-inset-6 rounded-3xl border border-indigo-100/60 pointer-events-none -z-10 hidden sm:block" />
+              <div className="absolute -inset-10 sm:-inset-12 rounded-[2.5rem] border border-purple-50/70 pointer-events-none -z-20 hidden md:block" />
+
+              {/* ── MAIN DASHBOARD CONTAINER ── */}
+              <div className="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white shadow-[0_20px_50px_-15px_rgba(79,70,229,0.14)] overflow-hidden transition-all duration-300 hover:shadow-[0_25px_65px_-12px_rgba(79,70,229,0.18)]">
+                {/* Browser-style Top Bar */}
+                <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/90 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2.5 w-2.5 rounded-full bg-rose-400/90" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-amber-400/90" />
+                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/90" />
+                    </div>
+                    <span className="ml-2 hidden sm:inline-block font-mono text-[10px] text-slate-400 bg-white px-2.5 py-0.5 rounded-md border border-slate-200/70">
+                      campusconnect.edu/workspaces/autonomous-rover
+                    </span>
+                  </div>
+
+                  {/* Pulsing Live Collaboration Indicator */}
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200/70">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    <span>Live Team Sync</span>
+                  </div>
+                </div>
+
+                {/* Dashboard Body (Sidebar + Content Workspace) */}
+                <div className="grid grid-cols-12 min-h-[380px] sm:min-h-[420px] text-left">
+                  {/* Mini Sidebar */}
+                  <div className="col-span-4 border-r border-slate-100 bg-slate-50/50 p-3 sm:p-4 space-y-3.5 flex flex-col justify-between">
+                    <div>
+                      {/* Project Header */}
+                      <div>
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                          Active Project
+                        </span>
+                        <h3 className="text-xs sm:text-sm font-black text-slate-900 mt-0.5 truncate">
+                          Autonomous Rover AI
+                        </h3>
+                        <span className="inline-block mt-1 rounded bg-indigo-50 px-2 py-0.5 text-[9px] font-bold text-indigo-700">
+                          Robotics & ML
+                        </span>
+                      </div>
+
+                      {/* Navigation Channels */}
+                      <div className="mt-3 space-y-1 text-xs">
+                        <div className="rounded-xl bg-indigo-600 px-2.5 py-1.5 text-white font-bold flex items-center justify-between shadow-2xs">
+                          <span className="flex items-center gap-1.5 text-[11px]">
+                            <FolderKanban size={13} /> Board
+                          </span>
+                          <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                        </div>
+                        <div className="rounded-xl px-2.5 py-1.5 text-slate-600 font-medium flex items-center justify-between hover:bg-slate-100/70 text-[11px]">
+                          <span className="flex items-center gap-1.5">
+                            <MessageSquare size={13} /> Team Chat
+                          </span>
+                          <span className="rounded-full bg-indigo-100 px-1.5 py-0.2 text-[9px] font-bold text-indigo-700">
+                            3
+                          </span>
+                        </div>
+                        <div className="rounded-xl px-2.5 py-1.5 text-slate-600 font-medium flex items-center gap-1.5 hover:bg-slate-100/70 text-[11px]">
+                          <Video size={13} /> Google Meet
+                        </div>
+                        <div className="rounded-xl px-2.5 py-1.5 text-slate-600 font-medium flex items-center gap-1.5 hover:bg-slate-100/70 text-[11px]">
+                          <Paperclip size={13} /> Resources
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Team Members List */}
+                    <div className="border-t border-slate-200/70 pt-2.5">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">
+                        Team Roster (4/5)
+                      </span>
+                      <div className="mt-1.5 space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-5 w-5 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 text-[9px]">
+                              A
+                            </div>
+                            <span className="font-semibold text-slate-800 truncate max-w-[65px] sm:max-w-[85px]">
+                              Aarav (Lead)
+                            </span>
+                          </div>
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-5 w-5 rounded-full bg-purple-100 flex items-center justify-center font-bold text-purple-700 text-[9px]">
+                              P
+                            </div>
+                            <span className="font-semibold text-slate-800 truncate max-w-[65px] sm:max-w-[85px]">
+                              Pooja (CV)
+                            </span>
+                          </div>
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-5 w-5 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-700 text-[9px]">
+                              R
+                            </div>
+                            <span className="font-semibold text-slate-800 truncate max-w-[65px] sm:max-w-[85px]">
+                              Rohan
+                            </span>
+                          </div>
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Main Canvas (Meetings + Kanban Columns + Chat preview) */}
+                  <div className="col-span-8 p-3 sm:p-4 space-y-3 bg-white flex flex-col justify-between">
+                    {/* Google Meet Scheduled Call Card */}
+                    <div className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-white p-2.5 sm:p-3 flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600 text-white flex-shrink-0 shadow-xs">
+                          <Video size={15} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[8px] font-bold text-emerald-800">
+                              Today
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium">4:30 PM (30m)</span>
+                          </div>
+                          <h4 className="text-xs font-bold text-slate-900 truncate">
+                            Sprint Demo & Code Review
+                          </h4>
+                        </div>
+                      </div>
+                      <a
+                        href="https://meet.google.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-lg bg-indigo-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-indigo-700 flex-shrink-0"
+                      >
+                        Join
+                      </a>
+                    </div>
+
+                    {/* Mini Kanban Board */}
+                    <div className="grid grid-cols-3 gap-2 flex-1">
+                      {/* Col 1: To Do */}
+                      <div className="rounded-xl bg-slate-50/80 p-2 border border-slate-200/70 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 mb-1.5">
+                            <span>To Do</span>
+                            <span className="rounded bg-slate-200 px-1 text-[9px]">1</span>
+                          </div>
+                          <div className="rounded-lg bg-white p-2 border border-slate-200/80 shadow-2xs space-y-1">
+                            <span className="rounded bg-rose-50 px-1 py-0.2 text-[8px] font-bold text-rose-700">
+                              HIGH
+                            </span>
+                            <p className="text-[10px] font-bold text-slate-800 leading-tight">
+                              LiDAR Calibration
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[9px] text-slate-400 font-medium mt-1">Rohan</span>
+                      </div>
+
+                      {/* Col 2: In Progress */}
+                      <div className="rounded-xl bg-indigo-50/30 p-2 border border-indigo-200/70 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between text-[10px] font-bold text-indigo-700 mb-1.5">
+                            <span>In Progress</span>
+                            <span className="rounded bg-indigo-100 px-1 text-[9px]">1</span>
+                          </div>
+                          <div className="rounded-lg bg-white p-2 border border-indigo-200 shadow-2xs space-y-1 ring-1 ring-indigo-50">
+                            <span className="rounded bg-indigo-50 px-1 py-0.2 text-[8px] font-bold text-indigo-700">
+                              URGENT
+                            </span>
+                            <p className="text-[10px] font-bold text-slate-900 leading-tight">
+                              YOLOv8 Model
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[9px] text-indigo-600 font-medium mt-1">Pooja</span>
+                      </div>
+
+                      {/* Col 3: Done */}
+                      <div className="rounded-xl bg-emerald-50/30 p-2 border border-emerald-200/70 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between text-[10px] font-bold text-emerald-700 mb-1.5">
+                            <span>Done</span>
+                            <span className="rounded bg-emerald-100 px-1 text-[9px]">2</span>
+                          </div>
+                          <div className="rounded-lg bg-white p-2 border border-emerald-200 shadow-2xs space-y-1">
+                            <span className="rounded bg-emerald-100 px-1 py-0.2 text-[8px] font-bold text-emerald-800">
+                              DONE
+                            </span>
+                            <p className="text-[10px] font-bold text-slate-700 line-through leading-tight">
+                              Motor PCB
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[9px] text-emerald-600 font-medium mt-1">Aarav</span>
+                      </div>
+                    </div>
+
+                    {/* Chat Snippet Bar */}
+                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/70 px-2.5 py-1.5 flex items-center justify-between gap-2 text-[10px]">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <div className="h-5 w-5 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-[9px] flex-shrink-0">
+                          P
+                        </div>
+                        <span className="font-semibold text-slate-800 flex-shrink-0">Pooja:</span>
+                        <span className="text-slate-600 truncate">
+                          "Model weights pushed to GitHub Resources tab!"
+                        </span>
+                      </div>
+                      <span className="text-[9px] text-slate-400 flex-shrink-0">Just now</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── FLOATING SATELLITE CARDS (Signature Layered Design) ── */}
+
+              {/* Floating Card 1: Task Completed Notification (Top Right) */}
+              <div className="absolute -top-5 -right-3 sm:-right-6 hidden sm:flex items-center gap-2.5 rounded-2xl border border-emerald-200/80 bg-white/95 px-3.5 py-2.5 shadow-xl backdrop-blur-md animate-float-slow z-20">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-2xs flex-shrink-0">
+                  <CheckCircle2 size={15} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-slate-900 leading-tight">
+                    Task Completed
+                  </div>
+                  <div className="text-[10px] text-slate-500">
+                    YOLOv8 Model Deployed by Pooja
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating Card 2: Sprint Progress Widget (Bottom Left) */}
+              <div className="absolute -bottom-6 -left-3 sm:-left-6 hidden sm:flex flex-col gap-1.5 rounded-2xl border border-indigo-100 bg-white/95 p-3.5 shadow-xl backdrop-blur-md animate-float-delayed z-20 w-44">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 flex items-center gap-1">
+                    <Rocket size={11} /> Sprint 2
+                  </span>
+                  <span className="text-[11px] font-extrabold text-slate-900">78%</span>
+                </div>
+                {/* Progress bar */}
+                <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-600 w-[78%]" />
+                </div>
+                <span className="text-[9px] text-slate-500 font-medium">
+                  14 of 18 deliverables closed
                 </span>
               </div>
 
-              {/* Inside Platform Preview */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[460px]">
-                {/* Left Mini Sidebar */}
-                <div className="lg:col-span-3 border-r border-slate-100 bg-slate-50/50 p-4 space-y-4 hidden md:block">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Active Workspace
-                    </span>
-                    <h3 className="text-sm font-black text-slate-900 mt-1">
-                      Autonomous Rover AI
-                    </h3>
-                    <span className="inline-block mt-1 rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                      Robotics & AI/ML
-                    </span>
-                  </div>
-
-                  <div className="space-y-1 text-xs">
-                    <div className="rounded-xl bg-indigo-50 px-3 py-2 font-bold text-indigo-700 flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <FolderKanban size={14} /> Workspace
-                      </span>
-                      <span className="h-2 w-2 rounded-full bg-indigo-600" />
-                    </div>
-                    <div className="rounded-xl px-3 py-2 text-slate-600 font-medium flex items-center gap-2">
-                      <MessageSquare size={14} /> Team Chat (3 unread)
-                    </div>
-                    <div className="rounded-xl px-3 py-2 text-slate-600 font-medium flex items-center gap-2">
-                      <Video size={14} /> Google Meet
-                    </div>
-                    <div className="rounded-xl px-3 py-2 text-slate-600 font-medium flex items-center gap-2">
-                      <Paperclip size={14} /> Resource Hub
-                    </div>
-                  </div>
-
-                  <div className="border-t border-slate-200/80 pt-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Team Roster (4/5)
-                    </span>
-                    <div className="mt-2 space-y-2">
-                      <div className="flex items-center gap-2 text-xs">
-                        <div className="h-6 w-6 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700 text-[10px]">
-                          A
-                        </div>
-                        <span className="font-semibold text-slate-800">Aarav (Lead)</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        <div className="h-6 w-6 rounded-full bg-purple-100 flex items-center justify-center font-bold text-purple-700 text-[10px]">
-                          P
-                        </div>
-                        <span className="font-semibold text-slate-800">Pooja (CV Eng)</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs">
-                        <div className="h-6 w-6 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-700 text-[10px]">
-                          R
-                        </div>
-                        <span className="font-semibold text-slate-800">Rohan (Hardware)</span>
-                      </div>
-                    </div>
-                  </div>
+              {/* Floating Card 3: Teammate Joined (Bottom Right) */}
+              <div className="absolute bottom-12 -right-4 sm:-right-8 hidden md:flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-md animate-float-slow z-20">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 font-bold text-xs flex-shrink-0">
+                  A
                 </div>
-
-                {/* Right Interactive Visual Area */}
-                <div className="lg:col-span-9 p-5 space-y-5 bg-white">
-                  {/* Standup Banner */}
-                  <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-white p-4 flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-xs">
-                        <Video size={18} />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-900">
-                          Sprint Review & Demo Standup
-                        </h4>
-                        <p className="text-[11px] text-slate-500">
-                          Today at 4:30 PM • meet.google.com/xyz-rovr-sprint
-                        </p>
-                      </div>
-                    </div>
-                    <a
-                      href="https://meet.google.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-indigo-700"
-                    >
-                      <Video size={13} /> Join Google Meet
-                    </a>
+                <div>
+                  <div className="text-[10px] font-bold text-slate-900 leading-tight">
+                    New Teammate Joined
                   </div>
-
-                  {/* Kanban Mini Board */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {/* Column 1 */}
-                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3">
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
-                        <span>To Do</span>
-                        <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px]">2</span>
-                      </div>
-                      <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-2xs space-y-1.5">
-                        <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[9px] font-bold text-rose-700">
-                          HIGH
-                        </span>
-                        <p className="text-xs font-semibold text-slate-800">
-                          Calibrate LiDAR Sensor
-                        </p>
-                        <span className="text-[10px] text-slate-400">Assigned: Rohan</span>
-                      </div>
-                    </div>
-
-                    {/* Column 2 */}
-                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3">
-                      <div className="flex items-center justify-between text-xs font-bold text-indigo-700 mb-2">
-                        <span>In Progress</span>
-                        <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px]">2</span>
-                      </div>
-                      <div className="rounded-lg border border-indigo-200 bg-white p-2.5 shadow-2xs space-y-1.5 ring-1 ring-indigo-50">
-                        <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">
-                          URGENT
-                        </span>
-                        <p className="text-xs font-semibold text-slate-900">
-                          YOLOv8 Obstacle Model
-                        </p>
-                        <span className="text-[10px] text-slate-500">Assigned: Pooja</span>
-                      </div>
-                    </div>
-
-                    {/* Column 3 */}
-                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/50 p-3">
-                      <div className="flex items-center justify-between text-xs font-bold text-emerald-700 mb-2">
-                        <span>Completed</span>
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px]">4</span>
-                      </div>
-                      <div className="rounded-lg border border-emerald-200 bg-emerald-50/30 p-2.5 shadow-2xs space-y-1.5">
-                        <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800">
-                          DONE
-                        </span>
-                        <p className="text-xs font-semibold text-slate-800 line-through">
-                          Motor Controller PCB
-                        </p>
-                        <span className="text-[10px] text-slate-400">Completed by Aarav</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Chat Preview strip */}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5 truncate">
-                      <div className="h-7 w-7 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
-                        P
-                      </div>
-                      <span className="font-semibold text-slate-800 flex-shrink-0">Pooja:</span>
-                      <span className="text-slate-600 truncate">
-                        "Pushed the latest model weights to GitHub resource tab, let's test at 4:30!"
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 whitespace-nowrap">Just now</span>
+                  <div className="text-[9px] text-slate-500">
+                    Aarav • Lead Architect
                   </div>
                 </div>
               </div>
