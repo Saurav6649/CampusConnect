@@ -78,20 +78,17 @@ export function initSocket(httpServer, allowedOrigins) {
           return socket.emit("error", { message: "Conversation not found" });
         }
 
-        // Authorize: user must be in participants or a member of the project
-        const isParticipant = conv.participants.some(
-          (p) => p.toString() === userId
-        );
-        let authorized = isParticipant;
-
-        if (!authorized && conv.projectId) {
+        let authorized = false;
+        if (conv.type === "project") {
+          if (!conv.projectId) {
+            return socket.emit("error", { message: "Invalid project conversation" });
+          }
           const project = await Project.findById(conv.projectId);
-          if (
-            project &&
-            project.members.some((m) => m.toString() === userId)
-          ) {
+          if (project && project.members.some((m) => m.toString() === userId)) {
             authorized = true;
           }
+        } else {
+          authorized = conv.participants.some((p) => p.toString() === userId);
         }
 
         if (authorized) {

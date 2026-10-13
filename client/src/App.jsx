@@ -15,6 +15,7 @@ import ProjectRequests from "./pages/ProjectRequests.jsx";
 import ChatPage from "./pages/ChatPage.jsx";
 import MyTasksPage from "./pages/MyTasksPage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
+import LandingPage from "./pages/LandingPage.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
 function ApiSetup() {
@@ -68,7 +69,7 @@ export default function App() {
           <Route path="/my-tasks" element={<MyTasksPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

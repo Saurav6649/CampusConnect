@@ -7,17 +7,21 @@ import {
   Plus,
   Search,
   Send,
-  Smile,
   Trash2,
   Edit2,
   Reply,
   X,
   ExternalLink,
   Users,
+  PanelRightClose,
+  PanelRightOpen,
+  Calendar,
+  CheckCircle2,
+  Phone,
+  Video,
 } from "lucide-react";
 import api from "../api/client.js";
 import Loader from "../components/Loader.jsx";
-import EmptyState from "../components/EmptyState.jsx";
 import { getSocket } from "../socket.js";
 
 export default function ChatPage() {
@@ -31,6 +35,7 @@ export default function ChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [me, setMe] = useState(null);
+  const [showRightDrawer, setShowRightDrawer] = useState(true);
 
   // Message input state
   const [inputText, setInputText] = useState("");
@@ -71,7 +76,12 @@ export default function ChatPage() {
       // Select active conversation
       if (activeParamId) {
         const found = convs.find((c) => c._id === activeParamId);
-        if (found) setActiveConv(found);
+        if (found) {
+          setActiveConv(found);
+        } else if (convs.length > 0) {
+          setActiveConv(convs[0]);
+          setSearchParams({ id: convs[0]._id }, { replace: true });
+        }
       } else if (convs.length > 0 && !activeConv) {
         setActiveConv(convs[0]);
         setSearchParams({ id: convs[0]._id }, { replace: true });
@@ -129,12 +139,13 @@ export default function ChatPage() {
 
     const handleNewMessage = (msg) => {
       if (activeConv && msg.conversationId === activeConv._id) {
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === msg._id)) return prev;
+          return [...prev, msg];
+        });
         scrollToBottom();
-        // Mark as read
         api.post(`/conversations/${activeConv._id}/read`).catch(() => {});
       } else {
-        // Increment unread count for other conversation
         setConversations((prev) =>
           prev.map((c) =>
             c._id === msg.conversationId
@@ -224,10 +235,10 @@ export default function ChatPage() {
       };
 
       const res = await api.post(`/conversations/${activeConv._id}/messages`, payload);
-      // Append if not already received via socket
-      setMessages((prev) =>
-        prev.some((m) => m._id === res.data.message._id) ? prev : [...prev, res.data.message]
-      );
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === res.data.message._id)) return prev;
+        return [...prev, res.data.message];
+      });
       setInputText("");
       setAttachmentsList([]);
       setReplyingTo(null);
@@ -271,7 +282,6 @@ export default function ChatPage() {
     }
   }
 
-  // Add attachment link
   function addAttachment() {
     if (!attachmentUrl.trim()) return;
     setAttachmentsList((prev) => [
@@ -307,7 +317,6 @@ export default function ChatPage() {
     return () => clearTimeout(timer);
   }, [userQuery]);
 
-  // Start direct message
   async function startDirectMessage(recipientId) {
     try {
       const res = await api.post("/conversations/direct", { recipientId });
@@ -315,7 +324,6 @@ export default function ChatPage() {
       setShowNewDmModal(false);
       setUserQuery("");
 
-      // Add to list if missing
       setConversations((prev) => {
         if (prev.some((c) => c._id === conv._id)) return prev;
         return [conv, ...prev];
@@ -328,7 +336,6 @@ export default function ChatPage() {
     }
   }
 
-  // Group conversations into projects and DMs
   const filteredConversations = conversations.filter((c) => {
     const title =
       c.type === "project"
@@ -342,7 +349,6 @@ export default function ChatPage() {
 
   if (loadingConv) return <Loader label="Loading conversations..." />;
 
-  // Format recipient title for direct conversation
   const getConversationTitle = (conv) => {
     if (!conv) return "";
     if (conv.type === "project") {
@@ -352,31 +358,26 @@ export default function ChatPage() {
     return other?.name || "Direct Message";
   };
 
-  const getConversationSubtitle = (conv) => {
-    if (!conv) return "";
-    if (conv.type === "project") {
-      return `${conv.projectId?.category || "Project"} • ${conv.participants?.length || 0} members`;
-    }
-    const other = conv.participants?.find((p) => p._id !== me?._id);
-    return other?.college || other?.branch || "Student";
-  };
+  const activeProject = activeConv?.type === "project" ? activeConv.projectId : null;
+  const projectMembers = activeProject?.members || [];
+  const projectOwnerId = activeProject?.creatorId?._id || activeProject?.creatorId;
 
   return (
     <div className="flex h-[calc(100vh-10rem)] min-h-[600px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-      {/* ── Left Sidebar ────────────────────────────────────────────── */}
-      <aside className="w-80 flex-shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/50">
+      {/* ── LEFT SIDEBAR: CONVERSATIONS ─────────────────────────────── */}
+      <aside className="w-80 flex-shrink-0 border-r border-slate-200 flex flex-col bg-slate-50/60">
         {/* Header & Search */}
         <div className="p-4 border-b border-slate-200/80 bg-white space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <MessageSquare size={18} className="text-indigo-600" /> Messages
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <MessageSquare size={17} className="text-indigo-600" /> Team Conversations
             </h2>
             <button
               onClick={() => setShowNewDmModal(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+              className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
               title="New Direct Message"
             >
-              <Plus size={16} />
+              <Plus size={15} />
             </button>
           </div>
 
@@ -394,17 +395,26 @@ export default function ChatPage() {
 
         {/* Conversation list */}
         <div className="flex-1 overflow-y-auto p-2 space-y-4">
-          {/* Project channels */}
+          {/* Project Team Group Conversations */}
           <div>
-            <p className="px-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Project Channels ({projectChannels.length})
+            <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <Users size={12} /> Project Group Chats ({projectChannels.length})
             </p>
             {projectChannels.length === 0 ? (
-              <p className="px-2 py-1 text-xs text-slate-400 italic">No project channels</p>
+              <p className="px-2 py-2 text-xs text-slate-400 italic">No team projects yet</p>
             ) : (
               <div className="space-y-1">
                 {projectChannels.map((conv) => {
                   const isSelected = activeConv?._id === conv._id;
+                  const memberCount = conv.projectId?.members?.length || conv.participants?.length || 1;
+                  const projTitle = conv.projectId?.title || conv.title || "Project";
+                  const initials = projTitle
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((w) => w[0])
+                    .join("")
+                    .toUpperCase();
+
                   return (
                     <button
                       key={conv._id}
@@ -412,27 +422,52 @@ export default function ChatPage() {
                         setActiveConv(conv);
                         setSearchParams({ id: conv._id });
                       }}
-                      className={`w-full flex items-center gap-3 rounded-xl p-2.5 text-left transition-colors ${
+                      className={`w-full flex items-center gap-3 rounded-xl p-2.5 text-left transition-colors relative ${
                         isSelected
                           ? "bg-indigo-600 text-white shadow-xs"
                           : "hover:bg-slate-100 text-slate-700"
                       }`}
                     >
+                      {/* Project initials badge */}
                       <div
-                        className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl font-bold text-xs ${
-                          isSelected ? "bg-white/20 text-white" : "bg-indigo-100 text-indigo-700"
+                        className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl font-bold text-xs ${
+                          isSelected
+                            ? "bg-white/20 text-white"
+                            : "bg-indigo-100 text-indigo-700"
                         }`}
                       >
-                        <FolderKanban size={15} />
+                        {initials || <FolderKanban size={16} />}
                       </div>
+
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between">
-                          <p className="truncate text-xs font-semibold">
-                            {conv.projectId?.title || conv.title}
+                          <p className="truncate text-xs font-bold">{projTitle}</p>
+                          {conv.lastMessage?.sentAt && (
+                            <span
+                              className={`text-[10px] flex-shrink-0 ml-1 ${
+                                isSelected ? "text-indigo-200" : "text-slate-400"
+                              }`}
+                            >
+                              {new Date(conv.lastMessage.sentAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between mt-0.5">
+                          <p
+                            className={`truncate text-[11px] ${
+                              isSelected ? "text-indigo-100" : "text-slate-400"
+                            }`}
+                          >
+                            {conv.lastMessage?.text || `${memberCount} members on team`}
                           </p>
+
                           {conv.unreadCount > 0 && (
                             <span
-                              className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                              className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold flex-shrink-0 ml-1.5 ${
                                 isSelected ? "bg-white text-indigo-700" : "bg-rose-500 text-white"
                               }`}
                             >
@@ -440,13 +475,6 @@ export default function ChatPage() {
                             </span>
                           )}
                         </div>
-                        <p
-                          className={`truncate text-[11px] ${
-                            isSelected ? "text-indigo-100" : "text-slate-400"
-                          }`}
-                        >
-                          {conv.lastMessage?.text || "No messages yet"}
-                        </p>
                       </div>
                     </button>
                   );
@@ -455,21 +483,21 @@ export default function ChatPage() {
             )}
           </div>
 
-          {/* Direct Messages */}
+          {/* Direct Messages Section */}
           <div>
-            <div className="flex items-center justify-between px-2 pb-1">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <div className="flex items-center justify-between px-2 pb-1.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 Direct Messages ({directMessages.length})
               </p>
               <button
                 onClick={() => setShowNewDmModal(true)}
-                className="text-[11px] font-semibold text-indigo-600 hover:underline"
+                className="text-[10px] font-bold text-indigo-600 hover:underline"
               >
-                + New
+                + New DM
               </button>
             </div>
             {directMessages.length === 0 ? (
-              <p className="px-2 py-1 text-xs text-slate-400 italic">No direct chats yet</p>
+              <p className="px-2 py-2 text-xs text-slate-400 italic">No direct chats yet</p>
             ) : (
               <div className="space-y-1">
                 {directMessages.map((conv) => {
@@ -493,12 +521,12 @@ export default function ChatPage() {
                           isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"
                         }`}
                       >
-                        {otherUser?.name?.charAt(0)?.toUpperCase() || "?"}
+                        {otherUser?.name?.charAt(0)?.toUpperCase() || "S"}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between">
                           <p className="truncate text-xs font-semibold">
-                            {otherUser?.name || "Direct Message"}
+                            {otherUser?.name || "Student"}
                           </p>
                           {conv.unreadCount > 0 && (
                             <span
@@ -527,53 +555,67 @@ export default function ChatPage() {
         </div>
       </aside>
 
-      {/* ── Main Chat Area ───────────────────────────────────────────── */}
-      <section className="flex-1 flex flex-col bg-white">
+      {/* ── MAIN PANEL: ACTIVE GROUP CHAT ───────────────────────────── */}
+      <section className="flex-1 flex flex-col bg-white min-w-0">
         {activeConv ? (
           <>
-            {/* Chat Header */}
-            <div className="flex h-16 items-center justify-between border-b border-slate-200 px-6">
+            {/* Header */}
+            <div className="flex h-16 items-center justify-between border-b border-slate-200 px-5 bg-white">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 font-bold">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 font-bold">
                   {activeConv.type === "project" ? (
                     <FolderKanban size={20} />
                   ) : (
                     activeConv.participants
                       ?.find((p) => p._id !== me?._id)
                       ?.name?.charAt(0)
-                      ?.toUpperCase() || "?"
+                      ?.toUpperCase() || "S"
                   )}
                 </div>
+
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-bold text-slate-900">
-                    {getConversationTitle(activeConv)}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="truncate text-sm font-bold text-slate-900">
+                      {getConversationTitle(activeConv)}
+                    </h3>
+                    {activeConv.type === "project" && (
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.2 text-[10px] font-bold text-emerald-700">
+                        Team Channel
+                      </span>
+                    )}
+                  </div>
                   <p className="truncate text-xs text-slate-500">
-                    {getConversationSubtitle(activeConv)}
+                    {activeConv.type === "project"
+                      ? `${activeProject?.members?.length || activeConv.participants?.length || 0} members active`
+                      : activeConv.participants?.find((p) => p._id !== me?._id)?.college || "Student"}
                   </p>
                 </div>
               </div>
 
-              {activeConv.type === "project" && activeConv.projectId?._id && (
-                <Link
-                  to={`/projects/${activeConv.projectId._id}`}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Project Workspace <ExternalLink size={12} />
-                </Link>
-              )}
+              {/* Header Right Actions */}
+              <div className="flex items-center gap-2">
+                {activeConv.type === "project" && activeConv.projectId?._id && (
+                  <button
+                    onClick={() => setShowRightDrawer(!showRightDrawer)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"
+                    title={showRightDrawer ? "Hide project info" : "Show project info"}
+                  >
+                    {showRightDrawer ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Messages Thread */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {/* Message Thread */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5">
               {loadingMessages ? (
                 <Loader label="Loading messages..." />
               ) : messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="flex flex-col items-center justify-center py-20 text-center">
                   <MessageSquare size={36} className="text-slate-300 mb-2" />
-                  <p className="text-sm font-semibold text-slate-700">No messages yet</p>
+                  <p className="text-sm font-bold text-slate-700">Project Channel Initialized</p>
                   <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                    Be the first to say hello to the team or share a resource link!
+                    Say hello to your project teammates, share meeting notes, or paste resource links!
                   </p>
                 </div>
               ) : (
@@ -584,7 +626,7 @@ export default function ChatPage() {
                   return (
                     <div
                       key={msg._id}
-                      className={`group flex items-start gap-3 ${
+                      className={`group flex items-start gap-2.5 ${
                         isMe ? "flex-row-reverse" : "flex-row"
                       }`}
                     >
@@ -596,7 +638,7 @@ export default function ChatPage() {
                             : "bg-slate-100 text-slate-700 border border-slate-200"
                         }`}
                       >
-                        {msg.senderId?.name?.charAt(0)?.toUpperCase() || "?"}
+                        {msg.senderId?.name?.charAt(0)?.toUpperCase() || "S"}
                       </div>
 
                       {/* Bubble */}
@@ -696,7 +738,7 @@ export default function ChatPage() {
                           </div>
                         )}
 
-                        {/* Hover Actions (Reply, Edit, Delete) */}
+                        {/* Hover Actions */}
                         {!msg.isDeleted && !isEditing && (
                           <div
                             className={`mt-1.5 flex items-center gap-2 pt-1 border-t opacity-0 group-hover:opacity-100 transition-opacity ${
@@ -811,7 +853,7 @@ export default function ChatPage() {
 
                 <input
                   type="text"
-                  placeholder="Type your message... (press Enter to send)"
+                  placeholder="Type message to the team... (press Enter to send)"
                   value={inputText}
                   onChange={handleInputChange}
                   className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all"
@@ -830,13 +872,94 @@ export default function ChatPage() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
             <MessageSquare size={48} className="text-slate-200 mb-3" />
-            <h3 className="text-lg font-semibold text-slate-800">Select a conversation</h3>
+            <h3 className="text-lg font-bold text-slate-800">Select a project conversation</h3>
             <p className="mt-1 text-sm text-slate-500 max-w-sm">
-              Choose an active project channel from the sidebar or start a new direct message with a peer.
+              Choose an active project channel from the left sidebar to coordinate with your team.
             </p>
           </div>
         )}
       </section>
+
+      {/* ── RIGHT PANEL: PROJECT & TEAM DRAWER ──────────────────────── */}
+      {activeConv?.type === "project" && showRightDrawer && activeProject && (
+        <aside className="w-72 flex-shrink-0 border-l border-slate-200 bg-slate-50/50 p-4 overflow-y-auto space-y-5 hidden lg:block">
+          <div>
+            <span className="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
+              {activeProject.category}
+            </span>
+            <h4 className="mt-1.5 text-sm font-bold text-slate-900 leading-snug">
+              {activeProject.title}
+            </h4>
+            <p className="mt-1 text-xs text-slate-500">
+              Status: <span className="font-semibold uppercase text-emerald-700">{activeProject.status || "active"}</span>
+            </p>
+          </div>
+
+          {/* Quick Shortcuts */}
+          <div className="border-t border-slate-200 pt-4 space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Project Shortcuts
+            </p>
+            <Link
+              to={`/projects/${activeProject._id}`}
+              className="flex items-center justify-between rounded-xl bg-white p-2.5 text-xs font-semibold text-slate-700 border border-slate-200/80 shadow-xs hover:bg-slate-100"
+            >
+              <span className="flex items-center gap-2">
+                <FolderKanban size={14} className="text-indigo-600" /> Workspace
+              </span>
+              <ExternalLink size={12} className="text-slate-400" />
+            </Link>
+            <Link
+              to={`/projects/${activeProject._id}?tab=tasks`}
+              className="flex items-center justify-between rounded-xl bg-white p-2.5 text-xs font-semibold text-slate-700 border border-slate-200/80 shadow-xs hover:bg-slate-100"
+            >
+              <span className="flex items-center gap-2">
+                <CheckCircle2 size={14} className="text-indigo-600" /> Tasks Board
+              </span>
+              <ExternalLink size={12} className="text-slate-400" />
+            </Link>
+            <Link
+              to={`/projects/${activeProject._id}?tab=meetings`}
+              className="flex items-center justify-between rounded-xl bg-white p-2.5 text-xs font-semibold text-slate-700 border border-slate-200/80 shadow-xs hover:bg-slate-100"
+            >
+              <span className="flex items-center gap-2">
+                <Video size={14} className="text-indigo-600" /> Schedule Meeting
+              </span>
+              <ExternalLink size={12} className="text-slate-400" />
+            </Link>
+          </div>
+
+          {/* Team Members List */}
+          <div className="border-t border-slate-200 pt-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2.5">
+              Team Members ({projectMembers.length})
+            </p>
+            <div className="space-y-2">
+              {projectMembers.map((member) => {
+                const isOwner = (member._id || member).toString() === (projectOwnerId?._id || projectOwnerId)?.toString();
+                return (
+                  <div
+                    key={member._id || member}
+                    className="flex items-center gap-2.5 rounded-xl bg-white p-2 border border-slate-100 shadow-xs"
+                  >
+                    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-bold text-indigo-700">
+                      {member.name?.charAt(0)?.toUpperCase() || "S"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-slate-900">
+                        {member.name || "Student"}
+                      </p>
+                      <p className="truncate text-[10px] text-slate-400">
+                        {isOwner ? "👑 Owner" : "Member"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </aside>
+      )}
 
       {/* ── Attachment Modal ─────────────────────────────────────────── */}
       {showAttachmentModal && (
@@ -935,7 +1058,7 @@ export default function ChatPage() {
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
-                          {u.name?.charAt(0)?.toUpperCase() || "?"}
+                          {u.name?.charAt(0)?.toUpperCase() || "S"}
                         </div>
                         <div>
                           <p className="text-xs font-semibold text-slate-900">{u.name}</p>

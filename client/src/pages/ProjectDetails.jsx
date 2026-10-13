@@ -7,8 +7,11 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Copy,
+  CheckCheck,
   ExternalLink,
   FolderKanban,
+  Link2,
   MessageSquare,
   Paperclip,
   Pencil,
@@ -21,6 +24,7 @@ import {
   UserCheck,
   UserMinus,
   Users,
+  Video,
   X,
   ShieldAlert,
 } from "lucide-react";
@@ -38,6 +42,7 @@ const TABS = [
   { id: "team", label: "Team", icon: Users },
   { id: "tasks", label: "Tasks", icon: CheckCircle2 },
   { id: "chat", label: "Chat", icon: MessageSquare },
+  { id: "meetings", label: "Meetings", icon: Video },
   { id: "resources", label: "Resources", icon: Paperclip },
   { id: "milestones", label: "Milestones", icon: Award },
   { id: "activity", label: "Activity", icon: Clock },
@@ -104,6 +109,24 @@ export default function ProjectDetails() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
 
+  // Meetings state
+  const [meetings, setMeetings] = useState([]);
+  const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [meetTitle, setMeetTitle] = useState("");
+  const [meetDate, setMeetDate] = useState("");
+  const [meetTime, setMeetTime] = useState("");
+  const [meetDuration, setMeetDuration] = useState("30");
+  const [meetUrl, setMeetUrl] = useState("");
+  const [meetDesc, setMeetDesc] = useState("");
+  const [meetError, setMeetError] = useState("");
+  const [schedulingMeet, setSchedulingMeet] = useState(false);
+  const [copiedMeetId, setCopiedMeetId] = useState(null);
+  const [meetingActionId, setMeetingActionId] = useState(null);
+
+  // Resource actions state
+  const [addingResource, setAddingResource] = useState(false);
+  const [deletingResourceId, setDeletingResourceId] = useState(null);
+
   const loadProjectData = useCallback(async () => {
     try {
       const [projectRes, meRes] = await Promise.all([
@@ -124,6 +147,7 @@ export default function ProjectDetails() {
         setTasks(wsRes.data.tasks || []);
         setMilestones(wsRes.data.milestones || []);
         setResources(wsRes.data.resources || []);
+        setMeetings(wsRes.data.meetings || []);
         setActivities(wsRes.data.activities || []);
         setPendingRequests(wsRes.data.pendingRequests || []);
 
@@ -167,7 +191,36 @@ export default function ProjectDetails() {
     const handleActivity = (act) => setActivities((prev) => [act, ...prev.slice(0, 19)]);
     const handleMilestoneUpdated = (ms) =>
       setMilestones((prev) => prev.map((m) => (m._id === ms._id ? ms : m)));
-    const handleResourceAdded = (r) => setResources((prev) => [r, ...prev]);
+
+    // Resource socket listeners with strict deduplication
+    const handleResourceAdded = (r) => {
+      setResources((prev) => {
+        if (prev.some((existing) => existing._id === r._id)) return prev;
+        return [r, ...prev];
+      });
+    };
+    const handleResourceDeleted = ({ resourceId }) => {
+      setResources((prev) => prev.filter((r) => r._id !== resourceId));
+    };
+
+    // Meeting socket listeners
+    const handleMeetingScheduled = (m) => {
+      setMeetings((prev) => {
+        if (prev.some((existing) => existing._id === m._id)) return prev;
+        return [...prev, m].sort((a, b) => new Date(a.date) - new Date(b.date));
+      });
+    };
+    const handleMeetingUpdated = (updated) => {
+      setMeetings((prev) => prev.map((m) => (m._id === updated._id ? updated : m)));
+    };
+    const handleMeetingCancelled = ({ meetingId }) => {
+      setMeetings((prev) =>
+        prev.map((m) => (m._id === meetingId ? { ...m, status: "cancelled" } : m))
+      );
+    };
+    const handleMeetingDeleted = ({ meetingId }) => {
+      setMeetings((prev) => prev.filter((m) => m._id !== meetingId));
+    };
 
     socket.on("task_created", handleTaskCreated);
     socket.on("task_updated", handleTaskUpdated);
@@ -175,6 +228,11 @@ export default function ProjectDetails() {
     socket.on("new_activity", handleActivity);
     socket.on("milestone_updated", handleMilestoneUpdated);
     socket.on("resource_added", handleResourceAdded);
+    socket.on("resource_deleted", handleResourceDeleted);
+    socket.on("meeting_scheduled", handleMeetingScheduled);
+    socket.on("meeting_updated", handleMeetingUpdated);
+    socket.on("meeting_cancelled", handleMeetingCancelled);
+    socket.on("meeting_deleted", handleMeetingDeleted);
 
     return () => {
       socket.emit("leave_project", project._id);
@@ -184,6 +242,11 @@ export default function ProjectDetails() {
       socket.off("new_activity", handleActivity);
       socket.off("milestone_updated", handleMilestoneUpdated);
       socket.off("resource_added", handleResourceAdded);
+      socket.off("resource_deleted", handleResourceDeleted);
+      socket.off("meeting_scheduled", handleMeetingScheduled);
+      socket.off("meeting_updated", handleMeetingUpdated);
+      socket.off("meeting_cancelled", handleMeetingCancelled);
+      socket.off("meeting_deleted", handleMeetingDeleted);
     };
   }, [project?._id]);
 
@@ -299,7 +362,8 @@ export default function ProjectDetails() {
 
   async function handleAddResource(e) {
     e.preventDefault();
-    if (!resTitle.trim() || !resUrl.trim()) return;
+    if (!resTitle.trim() || !resUrl.trim() || addingResource) return;
+    setAddingResource(true);
     try {
       const res = await api.post(`/resources/project/${id}`, {
         title: resTitle.trim(),
@@ -307,23 +371,110 @@ export default function ProjectDetails() {
         type: resType,
         description: resDesc.trim(),
       });
-      setResources((prev) => [res.data.resource, ...prev]);
+      const newRes = res.data.resource;
+      setResources((prev) => {
+        if (prev.some((r) => r._id === newRes._id)) return prev;
+        return [newRes, ...prev];
+      });
       setShowResourceModal(false);
       setResTitle("");
       setResUrl("");
       setResDesc("");
     } catch (err) {
       setError(err.response?.data?.message || "Failed to add resource");
+    } finally {
+      setAddingResource(false);
     }
   }
 
   async function handleDeleteResource(resId) {
+    if (deletingResourceId) return;
+    setDeletingResourceId(resId);
     try {
       await api.delete(`/resources/${resId}`);
       setResources((prev) => prev.filter((r) => r._id !== resId));
     } catch (err) {
       console.error(err);
+    } finally {
+      setDeletingResourceId(null);
     }
+  }
+
+  // ── Meeting Actions ────────────────────────────────────────────────────────
+  async function handleScheduleMeeting(e) {
+    e.preventDefault();
+    setMeetError("");
+    if (!meetTitle.trim() || !meetDate || !meetTime || !meetUrl.trim() || schedulingMeet) return;
+
+    let cleanUrl = meetUrl.trim();
+    if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+      cleanUrl = "https://" + cleanUrl;
+    }
+    if (!cleanUrl.includes("meet.google.com")) {
+      setMeetError("Please enter a valid Google Meet link (e.g. https://meet.google.com/abc-defg-hij)");
+      return;
+    }
+
+    setSchedulingMeet(true);
+    try {
+      const res = await api.post(`/meetings/project/${id}`, {
+        title: meetTitle.trim(),
+        date: meetDate,
+        startTime: meetTime,
+        duration: parseInt(meetDuration, 10) || 30,
+        meetUrl: cleanUrl,
+        description: meetDesc.trim(),
+        isManualLink: true,
+      });
+      const newMeet = res.data.meeting;
+      setMeetings((prev) => {
+        if (prev.some((m) => m._id === newMeet._id)) return prev;
+        return [...prev, newMeet].sort((a, b) => new Date(a.date) - new Date(b.date));
+      });
+      setShowMeetingModal(false);
+      setMeetTitle("");
+      setMeetDate("");
+      setMeetTime("");
+      setMeetDuration("30");
+      setMeetUrl("");
+      setMeetDesc("");
+    } catch (err) {
+      setMeetError(err.response?.data?.message || "Failed to schedule meeting");
+    } finally {
+      setSchedulingMeet(false);
+    }
+  }
+
+  async function handleCancelMeeting(meetingId) {
+    setMeetingActionId(meetingId);
+    try {
+      await api.put(`/meetings/${meetingId}/cancel`);
+      setMeetings((prev) =>
+        prev.map((m) => (m._id === meetingId ? { ...m, status: "cancelled" } : m))
+      );
+    } catch (err) {
+      console.error("Cancel meeting error:", err);
+    } finally {
+      setMeetingActionId(null);
+    }
+  }
+
+  async function handleDeleteMeeting(meetingId) {
+    setMeetingActionId(meetingId);
+    try {
+      await api.delete(`/meetings/${meetingId}`);
+      setMeetings((prev) => prev.filter((m) => m._id !== meetingId));
+    } catch (err) {
+      console.error("Delete meeting error:", err);
+    } finally {
+      setMeetingActionId(null);
+    }
+  }
+
+  function handleCopyMeetLink(meetId, url) {
+    navigator.clipboard.writeText(url);
+    setCopiedMeetId(meetId);
+    setTimeout(() => setCopiedMeetId(null), 2000);
   }
 
   async function handleAddMilestone(e) {
@@ -1094,7 +1245,263 @@ export default function ProjectDetails() {
         </div>
       )}
 
-      {/* 5. RESOURCES TAB */}
+      {/* 5. MEETINGS TAB (Google Meet Scheduling) */}
+      {isMember && currentTab === "meetings" && (
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Video size={18} className="text-indigo-600" /> Google Meet Schedules & Syncs
+              </h3>
+              <p className="text-xs text-slate-500">
+                Schedule video calls, design syncs, and pair programming sessions for your team.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setMeetError("");
+                setShowMeetingModal(true);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700"
+            >
+              <Plus size={15} /> Schedule Meeting
+            </button>
+          </div>
+
+          {meetings.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 mb-3">
+                <Video size={28} />
+              </div>
+              <h4 className="text-sm font-bold text-slate-800">No team meetings scheduled yet</h4>
+              <p className="mt-1 text-xs text-slate-500 max-w-md mx-auto">
+                Set up a Google Meet session to discuss sprint milestones, review PRs, or brainstorm with your teammates.
+              </p>
+              <button
+                onClick={() => {
+                  setMeetError("");
+                  setShowMeetingModal(true);
+                }}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+              >
+                <Plus size={14} /> Schedule First Sync
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Upcoming Meetings Section */}
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                  Upcoming Meetings (
+                  {
+                    meetings.filter(
+                      (m) =>
+                        m.status !== "cancelled" &&
+                        new Date(m.date).setHours(23, 59, 59, 999) >= Date.now()
+                    ).length
+                  }
+                  )
+                </h4>
+                {meetings.filter(
+                  (m) =>
+                    m.status !== "cancelled" &&
+                    new Date(m.date).setHours(23, 59, 59, 999) >= Date.now()
+                ).length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-xs text-slate-400">
+                    No upcoming meetings scheduled.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    {meetings
+                      .filter(
+                        (m) =>
+                          m.status !== "cancelled" &&
+                          new Date(m.date).setHours(23, 59, 59, 999) >= Date.now()
+                      )
+                      .map((meet) => {
+                        const isOrganizer =
+                          (meet.organizerId?._id || meet.organizerId)?.toString() === myId;
+                        const canManage = isOwner || isOrganizer;
+                        return (
+                          <div
+                            key={meet._id}
+                            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs flex flex-col justify-between hover:border-indigo-200 transition-colors"
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-100">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                  Scheduled
+                                </span>
+
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                  <Clock size={12} />
+                                  <span>{meet.duration} min</span>
+                                </div>
+                              </div>
+
+                              <h4 className="mt-3 text-base font-bold text-slate-900 break-words">
+                                {meet.title}
+                              </h4>
+
+                              {meet.description && (
+                                <p className="mt-1 text-xs text-slate-600 line-clamp-2 break-words">
+                                  {meet.description}
+                                </p>
+                              )}
+
+                              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500 border-t border-slate-100 pt-3">
+                                <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
+                                  <Calendar size={13} className="text-indigo-600" />
+                                  {new Date(meet.date).toLocaleDateString("en-IN", {
+                                    weekday: "short",
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}
+                                </span>
+                                <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
+                                  <Clock size={13} className="text-indigo-600" />
+                                  {meet.startTime}
+                                </span>
+                                <span className="text-[11px] text-slate-400">
+                                  Host: {meet.organizerId?.name || "Team Member"}
+                                </span>
+                              </div>
+
+                              {/* Google Meet Link bar */}
+                              <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 border border-slate-100 text-xs">
+                                <span className="font-mono text-slate-600 truncate max-w-[200px]">
+                                  {meet.meetUrl}
+                                </span>
+                                <button
+                                  onClick={() => handleCopyMeetLink(meet._id, meet.meetUrl)}
+                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
+                                >
+                                  {copiedMeetId === meet._id ? (
+                                    <>
+                                      <CheckCheck size={12} className="text-emerald-600" />
+                                      <span className="text-emerald-600">Copied!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy size={12} />
+                                      <span>Copy</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Actions footer */}
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                              <a
+                                href={meet.meetUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-indigo-700"
+                              >
+                                <Video size={14} /> Join Google Meet
+                              </a>
+
+                              {canManage && (
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleCancelMeeting(meet._id)}
+                                    disabled={meetingActionId === meet._id}
+                                    className="text-xs font-semibold text-amber-700 hover:underline disabled:opacity-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMeeting(meet._id)}
+                                    disabled={meetingActionId === meet._id}
+                                    className="text-xs font-semibold text-rose-600 hover:underline disabled:opacity-50"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              {/* Past / Cancelled Meetings Section */}
+              {meetings.some(
+                (m) =>
+                  m.status === "cancelled" ||
+                  new Date(m.date).setHours(23, 59, 59, 999) < Date.now()
+              ) && (
+                <div>
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                    Past & Cancelled Meetings
+                  </h4>
+                  <div className="space-y-2">
+                    {meetings
+                      .filter(
+                        (m) =>
+                          m.status === "cancelled" ||
+                          new Date(m.date).setHours(23, 59, 59, 999) < Date.now()
+                      )
+                      .map((meet) => {
+                        const isCancelled = meet.status === "cancelled";
+                        const canManage =
+                          isOwner || (meet.organizerId?._id || meet.organizerId)?.toString() === myId;
+                        return (
+                          <div
+                            key={meet._id}
+                            className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                  isCancelled
+                                    ? "bg-rose-100 text-rose-700"
+                                    : "bg-slate-200 text-slate-700"
+                                }`}
+                              >
+                                {isCancelled ? "Cancelled" : "Completed"}
+                              </span>
+                              <span className="font-bold text-slate-800">{meet.title}</span>
+                              <span className="text-slate-500">
+                                {new Date(meet.date).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                })}{" "}
+                                at {meet.startTime}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              <span className="text-[11px] text-slate-400">
+                                Host: {meet.organizerId?.name || "Member"}
+                              </span>
+                              {canManage && (
+                                <button
+                                  onClick={() => handleDeleteMeeting(meet._id)}
+                                  disabled={meetingActionId === meet._id}
+                                  className="text-[11px] font-semibold text-rose-600 hover:underline"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 6. RESOURCES TAB */}
       {isMember && currentTab === "resources" && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -1121,34 +1528,36 @@ export default function ProjectDetails() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
               {resources.map((res) => (
                 <div
                   key={res._id}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col justify-between"
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col justify-between transition-all duration-200"
                 >
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700">
                         {res.type}
                       </span>
-                      {(isOwner || res.uploadedById?._id === me?._id) && (
+                      {(isOwner || (res.uploadedById?._id || res.uploadedById) === me?._id) && (
                         <button
                           onClick={() => handleDeleteResource(res._id)}
-                          className="text-slate-400 hover:text-rose-600"
+                          disabled={deletingResourceId === res._id}
+                          className="text-slate-400 hover:text-rose-600 disabled:opacity-40 transition-opacity"
+                          title="Delete resource"
                         >
                           <Trash2 size={13} />
                         </button>
                       )}
                     </div>
-                    <h4 className="mt-2 text-sm font-bold text-slate-900">{res.title}</h4>
+                    <h4 className="mt-2 text-sm font-bold text-slate-900 break-words">{res.title}</h4>
                     {res.description && (
-                      <p className="mt-1 text-xs text-slate-500 line-clamp-2">{res.description}</p>
+                      <p className="mt-1 text-xs text-slate-500 line-clamp-2 break-words">{res.description}</p>
                     )}
                   </div>
 
                   <div className="mt-4 border-t pt-3 flex items-center justify-between text-xs">
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-slate-400 truncate max-w-[140px]">
                       By {res.uploadedById?.name || "Member"}
                     </span>
                     <a
@@ -1562,6 +1971,143 @@ export default function ProjectDetails() {
                   className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700"
                 >
                   Create Milestone
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Meeting Modal */}
+      {showMeetingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Video size={18} className="text-indigo-600" /> Schedule Team Google Meet
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Broadcasts meeting invite to all accepted project collaborators.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMeetingModal(false)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {meetError && (
+              <div className="mt-3 rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-700 flex items-center gap-2">
+                <AlertCircle size={14} className="flex-shrink-0" />
+                <span>{meetError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleScheduleMeeting} className="mt-4 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700">Meeting Topic / Title *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sprint Sync, Architecture Review, Pair Debugging"
+                  value={meetTitle}
+                  onChange={(e) => setMeetTitle(e.target.value)}
+                  required
+                  className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-xs outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700">Date *</label>
+                  <input
+                    type="date"
+                    min={new Date().toISOString().split("T")[0]}
+                    value={meetDate}
+                    onChange={(e) => setMeetDate(e.target.value)}
+                    required
+                    className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-xs outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700">Start Time *</label>
+                  <input
+                    type="time"
+                    value={meetTime}
+                    onChange={(e) => setMeetTime(e.target.value)}
+                    required
+                    className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-xs outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700">Duration</label>
+                  <select
+                    value={meetDuration}
+                    onChange={(e) => setMeetDuration(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-xs outline-none focus:border-indigo-500"
+                  >
+                    <option value="15">15 mins</option>
+                    <option value="30">30 mins</option>
+                    <option value="45">45 mins</option>
+                    <option value="60">60 mins</option>
+                    <option value="90">90 mins</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700">Google Meet Link *</label>
+                  <button
+                    type="button"
+                    onClick={() => window.open("https://meet.google.com/new", "_blank")}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 hover:underline"
+                  >
+                    <ExternalLink size={11} /> Generate New Meet Link
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="https://meet.google.com/abc-defg-hij"
+                  value={meetUrl}
+                  onChange={(e) => setMeetUrl(e.target.value)}
+                  required
+                  className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-xs font-mono outline-none focus:border-indigo-500"
+                />
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Tip: Click "Generate New Meet Link" to open a fresh Google Meet call, copy the URL, and paste it here.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700">Agenda / Discussion Points (Optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Items to discuss, files to review before the call..."
+                  value={meetDesc}
+                  onChange={(e) => setMeetDesc(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-xs outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowMeetingModal(false)}
+                  className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={schedulingMeet}
+                  className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  {schedulingMeet ? "Scheduling..." : "Schedule Meeting"}
                 </button>
               </div>
             </form>

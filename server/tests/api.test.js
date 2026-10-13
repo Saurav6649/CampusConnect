@@ -16,6 +16,7 @@ import Activity from "../models/Activity.js";
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
 import Notification from "../models/Notification.js";
+import Meeting from "../models/Meeting.js";
 
 // Routes & Middleware
 import { requireClerkAuth, requireDbUser } from "../middleware/requireDbUser.js";
@@ -29,6 +30,7 @@ import activityRoutes from "../routes/activity.js";
 import conversationRoutes from "../routes/conversations.js";
 import notificationRoutes from "../routes/notifications.js";
 import analyticsRoutes from "../routes/analytics.js";
+import meetingRoutes from "../routes/meetings.js";
 
 function createJwt(sub) {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64");
@@ -79,6 +81,7 @@ test.before(async () => {
   app.use("/api/conversations", ...authChain, conversationRoutes);
   app.use("/api/notifications", ...authChain, notificationRoutes);
   app.use("/api/analytics", ...authChain, analyticsRoutes);
+  app.use("/api/meetings", ...authChain, meetingRoutes);
 
   await new Promise((resolve) => {
     server = app.listen(0, () => {
@@ -107,11 +110,13 @@ test.after(async () => {
       Task.deleteMany({ projectId: { $in: testProjIds } }),
       Milestone.deleteMany({ projectId: { $in: testProjIds } }),
       Resource.deleteMany({ projectId: { $in: testProjIds } }),
+      Meeting.deleteMany({ projectId: { $in: testProjIds } }),
       Activity.deleteMany({ projectId: { $in: testProjIds } }),
       Conversation.deleteMany({ $or: [{ projectId: { $in: testProjIds } }, { participants: { $in: testUserIds } }] }),
       Notification.deleteMany({ recipientId: { $in: testUserIds } }),
     ]);
   }
+  await mongoose.disconnect();
 });
 
 let projectId = null;
@@ -120,6 +125,7 @@ let milestoneId = null;
 let resourceId = null;
 let conversationId = null;
 let messageId = null;
+let meetingId = null;
 
 test("1. User Profiles & Directory Search", async () => {
   // Alice updates profile
@@ -359,6 +365,34 @@ test("7. Resource Library & Validation", async () => {
   });
   assert.equal(listRes.status, 200);
   assert.ok(listRes.data.resources.some((r) => r._id === resourceId));
+
+  // Charlie (non-member) cannot delete Alice's resource -> 403
+  const badDelete = await request(`/api/resources/${resourceId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${CHARLIE_TOKEN}` },
+  });
+  assert.equal(badDelete.status, 403);
+
+  // Alice (creator) deletes resource -> 200
+  const deleteRes = await request(`/api/resources/${resourceId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${ALICE_TOKEN}` },
+  });
+  assert.equal(deleteRes.status, 200);
+
+  // Deleting already deleted resource -> 404
+  const deleteAgain = await request(`/api/resources/${resourceId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${ALICE_TOKEN}` },
+  });
+  assert.equal(deleteAgain.status, 404);
+
+  // Verify resource list is now empty of that item
+  const afterDeleteList = await request(`/api/resources/project/${projectId}`, {
+    headers: { Authorization: `Bearer ${BOB_TOKEN}` },
+  });
+  assert.equal(afterDeleteList.status, 200);
+  assert.ok(!afterDeleteList.data.resources.some((r) => r._id === resourceId));
 });
 
 test("8. Real-time Team Chat & Direct Messaging", async () => {
@@ -446,4 +480,130 @@ test("10. Notification Center & Read Status", async () => {
     headers: { Authorization: `Bearer ${BOB_TOKEN}` },
   });
   assert.equal(afterRead.data.unreadCount, 0);
+});
+
+test("11. Google Meet Scheduling & Standup Coordination", async () => {
+  // Charlie (non-member) cannot view project meetings -> 403
+  const badList = await request(`/api/meetings/project/${projectId}`, {
+    headers: { Authorization: `Bearer ${CHARLIE_TOKEN}` },
+  });
+  assert.equal(badList.status, 403);
+
+  // Charlie (non-member) cannot schedule a meeting -> 403
+  const badCreate = await request(`/api/meetings/project/${projectId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${CHARLIE_TOKEN}` },
+    body: {
+      title: "Hacked sync",
+      date: new Date().toISOString(),
+      startTime: "10:00",
+      meetUrl: "https://meet.google.com/xyz-hack-bad",
+    },
+  });
+  assert.equal(badCreate.status, 403);
+
+  // Alice tries invalid URL -> 400
+  const invalidUrlRes = await request(`/api/meetings/project/${projectId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${ALICE_TOKEN}` },
+    body: {
+      title: "Sprint Standup",
+      date: new Date().toISOString(),
+      startTime: "16:00",
+      meetUrl: "not-a-google-meet-link",
+    },
+  });
+  assert.equal(invalidUrlRes.status, 400);
+
+  // Alice schedules valid Google Meet session
+  const meetRes = await request(`/api/meetings/project/${projectId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${ALICE_TOKEN}` },
+    body: {
+      title: "Sprint 1 Architecture Review",
+      description: "Review backend schemas and socket event map",
+      date: new Date().toISOString(),
+      startTime: "16:30",
+      duration: 45,
+      meetUrl: "https://meet.google.com/abc-defg-hij",
+      isManualLink: true,
+    },
+  });
+  assert.equal(meetRes.status, 201);
+  assert.ok(meetRes.data.meeting._id);
+  meetingId = meetRes.data.meeting._id;
+  assert.equal(meetRes.data.meeting.status, "scheduled");
+  assert.equal(meetRes.data.meeting.meetUrl, "https://meet.google.com/abc-defg-hij");
+
+  // Bob (team member) retrieves project meetings
+  const memberList = await request(`/api/meetings/project/${projectId}`, {
+    headers: { Authorization: `Bearer ${BOB_TOKEN}` },
+  });
+  assert.equal(memberList.status, 200);
+  assert.ok(memberList.data.meetings.some((m) => m._id === meetingId));
+
+  // Workspace endpoint returns meetings list
+  const wsRes = await request(`/api/projects/${projectId}/workspace`, {
+    headers: { Authorization: `Bearer ${BOB_TOKEN}` },
+  });
+  assert.equal(wsRes.status, 200);
+  assert.ok(Array.isArray(wsRes.data.meetings));
+  assert.ok(wsRes.data.meetings.some((m) => m._id === meetingId));
+
+  // Alice cancels meeting
+  const cancelRes = await request(`/api/meetings/${meetingId}/cancel`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${ALICE_TOKEN}` },
+  });
+  assert.equal(cancelRes.status, 200);
+  assert.equal(cancelRes.data.meeting.status, "cancelled");
+
+  // Charlie cannot delete meeting -> 403
+  const badDelete = await request(`/api/meetings/${meetingId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${CHARLIE_TOKEN}` },
+  });
+  assert.equal(badDelete.status, 403);
+
+  // Alice deletes meeting -> 200
+  const deleteRes = await request(`/api/meetings/${meetingId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${ALICE_TOKEN}` },
+  });
+  assert.equal(deleteRes.status, 200);
+
+  // Deleting again -> 404
+  const deleteAgain = await request(`/api/meetings/${meetingId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${ALICE_TOKEN}` },
+  });
+  assert.equal(deleteAgain.status, 404);
+});
+
+test("12. Project Conversation Idempotency & Member Access Boundary", async () => {
+  // Alice calls get project conversation multiple times -> returns same conversationId
+  const conv1 = await request(`/api/conversations/project/${projectId}`, {
+    headers: { Authorization: `Bearer ${ALICE_TOKEN}` },
+  });
+  assert.equal(conv1.status, 200);
+
+  const conv2 = await request(`/api/conversations/project/${projectId}`, {
+    headers: { Authorization: `Bearer ${ALICE_TOKEN}` },
+  });
+  assert.equal(conv2.status, 200);
+  assert.equal(conv1.data.conversation._id, conv2.data.conversation._id);
+
+  // Non-member Charlie cannot read messages from project conversation
+  const badMsgs = await request(`/api/conversations/${conv1.data.conversation._id}/messages`, {
+    headers: { Authorization: `Bearer ${CHARLIE_TOKEN}` },
+  });
+  assert.equal(badMsgs.status, 403);
+
+  // Non-member Charlie cannot post messages to project conversation
+  const badPost = await request(`/api/conversations/${conv1.data.conversation._id}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${CHARLIE_TOKEN}` },
+    body: { text: "Intruder message" },
+  });
+  assert.equal(badPost.status, 403);
 });

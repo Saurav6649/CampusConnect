@@ -24,4 +24,9 @@ const conversationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+conversationSchema.index(
+  { projectId: 1, type: 1 },
+  { unique: true, partialFilterExpression: { type: "project" } }
+);
+
 export default mongoose.model("Conversation", conversationSchema);

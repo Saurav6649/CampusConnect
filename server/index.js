@@ -16,6 +16,7 @@ import activityRoutes from "./routes/activity.js";
 import conversationRoutes from "./routes/conversations.js";
 import notificationRoutes from "./routes/notifications.js";
 import analyticsRoutes from "./routes/analytics.js";
+import meetingRoutes from "./routes/meetings.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -76,6 +77,7 @@ app.use("/api/activity", ...authChain, activityRoutes);
 app.use("/api/conversations", ...authChain, conversationRoutes);
 app.use("/api/notifications", ...authChain, notificationRoutes);
 app.use("/api/analytics", ...authChain, analyticsRoutes);
+app.use("/api/meetings", ...authChain, meetingRoutes);
 
 app.use((err, _req, res, _next) => {
   console.error("Global express error:", err);

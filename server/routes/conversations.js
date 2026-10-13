@@ -11,24 +11,25 @@ const router = express.Router();
 // Helper to check user membership in conversation
 async function checkConversationAccess(conversation, userId) {
   const userIdStr = userId.toString();
-  const isParticipant = conversation.participants.some(
-    (p) => (p._id || p).toString() === userIdStr
-  );
-  if (isParticipant) return true;
 
-  if (conversation.projectId) {
+  if (conversation.type === "project") {
+    if (!conversation.projectId) return false;
     const project = await Project.findById(conversation.projectId);
-    if (project && project.members.some((m) => m.toString() === userIdStr)) {
-      // Add user to participants if they are an accepted project member
+    if (!project) return false;
+    const isMember = project.members.some((m) => m.toString() === userIdStr);
+    if (isMember) {
       if (!conversation.participants.some((p) => p.toString() === userIdStr)) {
         conversation.participants.push(userId);
         await conversation.save();
       }
       return true;
     }
+    return false;
   }
 
-  return false;
+  return conversation.participants.some(
+    (p) => (p._id || p).toString() === userIdStr
+  );
 }
 
 // ── GET /api/conversations ─────────────────────────────────────────────────
@@ -56,14 +57,27 @@ router.get("/", async (req, res) => {
 
     const conversations = await Conversation.find({ participants: userId })
       .populate("participants", "name email college branch")
-      .populate("projectId", "title category status isOpen")
+      .populate({
+        path: "projectId",
+        select: "title category status isOpen members creatorId whatsappNumber",
+        populate: { path: "members", select: "name email college branch github linkedin" },
+      })
       .populate("lastMessage.senderId", "name")
       .sort({ updatedAt: -1 })
       .lean();
 
-    // Calculate unread counts
+    // Calculate unread counts and filter out projects user was removed from
     const withUnreads = await Promise.all(
       conversations.map(async (conv) => {
+        // If project conversation, verify user is still a current member
+        if (conv.type === "project") {
+          if (!conv.projectId) return null;
+          const isStillMember = conv.projectId.members?.some(
+            (m) => (m._id || m).toString() === userId.toString()
+          );
+          if (!isStillMember) return null;
+        }
+
         const myLastReadObj = conv.lastRead?.find(
           (lr) => lr.userId.toString() === userId.toString()
         );
@@ -82,7 +96,7 @@ router.get("/", async (req, res) => {
       })
     );
 
-    res.json({ conversations: withUnreads });
+    res.json({ conversations: withUnreads.filter(Boolean) });
   } catch (error) {
     console.error("GET /conversations error:", error);
     res.status(500).json({ message: "Failed to load conversations" });

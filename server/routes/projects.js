@@ -9,6 +9,7 @@ import Activity from "../models/Activity.js";
 import Conversation from "../models/Conversation.js";
 import Message from "../models/Message.js";
 import User from "../models/User.js";
+import Meeting from "../models/Meeting.js";
 import { logActivity } from "../utils/activity.js";
 import { createNotification } from "../utils/notifications.js";
 
@@ -275,8 +276,8 @@ router.get("/:id/workspace", async (req, res) => {
       return res.status(403).json({ message: "Only team members can access the workspace" });
     }
 
-    // Load tasks summary, milestones, resources, activity count, join requests if owner
-    const [tasks, milestones, resources, activities, pendingRequests] = await Promise.all([
+    // Load tasks summary, milestones, resources, activities, meetings, join requests if owner
+    const [tasks, milestones, resources, activities, meetings, pendingRequests] = await Promise.all([
       Task.find({ projectId: project._id })
         .populate("assigneeId", "name")
         .sort({ order: 1, createdAt: -1 })
@@ -287,12 +288,16 @@ router.get("/:id/workspace", async (req, res) => {
         .lean(),
       Resource.find({ projectId: project._id })
         .populate("uploadedById", "name")
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1, _id: -1 })
         .lean(),
       Activity.find({ projectId: project._id })
         .populate("userId", "name")
         .sort({ createdAt: -1 })
         .limit(20)
+        .lean(),
+      Meeting.find({ projectId: project._id })
+        .populate("organizerId", "name")
+        .sort({ date: 1, startTime: 1 })
         .lean(),
       isOwner
         ? JoinRequest.find({ projectId: project._id, status: "pending" })
@@ -314,6 +319,7 @@ router.get("/:id/workspace", async (req, res) => {
       milestones,
       resources,
       activities,
+      meetings,
       pendingRequests,
       stats: {
         totalTasks,
@@ -776,13 +782,14 @@ router.delete("/:id", async (req, res) => {
 
     const projectId = project._id;
 
-    // Cascade delete: requests, tasks, milestones, resources, activities, conversation & messages
+    // Cascade delete: requests, tasks, milestones, resources, activities, meetings, conversation & messages
     await Promise.all([
       JoinRequest.deleteMany({ projectId }),
       Task.deleteMany({ projectId }),
       Milestone.deleteMany({ projectId }),
       Resource.deleteMany({ projectId }),
       Activity.deleteMany({ projectId }),
+      Meeting.deleteMany({ projectId }),
     ]);
 
     const conv = await Conversation.findOne({ type: "project", projectId });
